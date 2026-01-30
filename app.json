@@ -1,0 +1,53 @@
+{
+  "expo": {
+    "name": "Vecindario-app",
+    "slug": "Vecindario-app",
+    "version": "1.0.1",
+    "orientation": "portrait",
+    "icon": "./assets/images/icon.png",
+    "scheme": "vecindarioapp",
+    "userInterfaceStyle": "automatic",
+    "jsEngine": "hermes",
+    "newArchEnabled": true,
+    "ios": {
+      "supportsTablet": true,
+      "bundleIdentifier": "com.jaran.vecindarioapp",
+      "infoPlist": {
+        "NSPhotoLibraryUsageDescription": "Esta aplicación necesita acceder a tus fotos para que puedas actualizar tu foto de perfil y compartir imágenes en tus publicaciones.",
+        "NSCameraUsageDescription": "Esta aplicación necesita acceder a tu cámara para que puedas tomar fotos para tu perfil y publicaciones.",
+        "NSLocationWhenInUseUsageDescription": "Esta aplicación necesita acceder a tu ubicación para mostrarte servicios y publicaciones relevantes en tu comunidad."
+      }
+    },
+    "android": {
+      "package": "com.jaran.vecindario.v2",
+      "googleServicesFile": "./google-services.json",
+      "adaptiveIcon": {
+        "backgroundColor": "#E6F4FE",
+        "foregroundImage": "./assets/images/adaptive-icon.png"
+      }
+    },
+    "splash": {
+      "image": "./assets/images/splash.png",
+      "resizeMode": "contain",
+      "backgroundColor": "#ffffff"
+    },
+    "web": {
+      "bundler": "metro",
+      "favicon": "./assets/images/favicon.png"
+    },
+    "plugins": [
+      "expo-splash-screen",
+      "expo-font",
+      "expo-notifications",
+      "@react-native-google-signin/google-signin"
+    ],
+    "experiments": {
+      "typedRoutes": true
+    },
+    "extra": {
+      "eas": {
+        "projectId": "a5725c49-3495-4bac-87fe-57fed6ba2aa8"
+      }
+    }
+  }
+}

@@ -1,0 +1,76 @@
+{
+  "project_info": {
+    "project_number": "326645024756",
+    "project_id": "vecindario-app-74fd0",
+    "storage_bucket": "vecindario-app-74fd0.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:326645024756:android:8bd8d05eb19ff3ffa6dba1",
+        "android_client_info": {
+          "package_name": "com.jaran.vecindario.v2"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "326645024756-f8mf6mdtba5l7913va2btktn7tkhj47u.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.jaran.vecindario.v2",
+            "certificate_hash": "5e8f16062ea3cd2c4a0d547876baa6f38cabf625"
+          }
+        },
+        {
+          "client_id": "326645024756-te4slj6ppdh17dk3coskditcjnr4fp38.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyB0qwf67OkkdhKh_5IuKklJzy8U-iDFU5c"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "326645024756-te4slj6ppdh17dk3coskditcjnr4fp38.apps.googleusercontent.com",
+              "client_type": 3
+            }
+          ]
+        }
+      }
+    },
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:326645024756:android:21fe621b90f2621ea6dba1",
+        "android_client_info": {
+          "package_name": "com.jaran.vecindarioapp"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "326645024756-te4slj6ppdh17dk3coskditcjnr4fp38.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyB0qwf67OkkdhKh_5IuKklJzy8U-iDFU5c"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "326645024756-te4slj6ppdh17dk3coskditcjnr4fp38.apps.googleusercontent.com",
+              "client_type": 3
+            }
+          ]
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
