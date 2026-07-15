@@ -16,13 +16,15 @@ export const postsService = {
                         nombre,
                         foto_url,
                         depto,
-                        sexo
+                        sexo,
+                        raiting_ventas
                     ),
                     comentarios (
                         id,
                         contenido,
                         created_at,
-                        profiles:user_id (nombre, foto_url)
+                        profiles:user_id (id, nombre, foto_url, depto, raiting_ventas),
+                        comentario_likes (user_id)
                     ),
                     post_likes (user_id)
                 `)
@@ -50,12 +52,22 @@ export const postsService = {
             const processedData = data.map(post => {
                 const allComments = post.comentarios || [];
                 const likes = post.post_likes || [];
+
+                const processedComments = allComments.map(comment => {
+                    const commentLikes = comment.comentario_likes || [];
+                    return {
+                        ...comment,
+                        likes_count: commentLikes.length,
+                        has_liked: userId ? commentLikes.some(l => l.user_id === userId) : false
+                    };
+                });
+
                 return {
                     ...post,
                     likes_count: likes.length,
                     has_liked: userId ? likes.some(like => like.user_id === userId) : false,
                     comentarios_count: allComments.length,
-                    recent_comments: allComments.slice(0, 3).reverse() // Tomar 3 y revertir para mostrar orden cronológico
+                    recent_comments: processedComments.slice(0, 3).reverse()
                 };
             });
 
@@ -95,6 +107,60 @@ export const postsService = {
         } catch (error) {
             console.error('[postsService] toggleLike error:', error);
             return { action: null, error };
+        }
+    },
+
+    // Obtener usuarios que dieron like a un post
+    async getPostLikes(postId) {
+        try {
+            const { data, error } = await supabase
+                .from('post_likes')
+                .select(`
+                    user_id,
+                    profiles:user_id (
+                        id,
+                        nombre,
+                        foto_url,
+                        depto,
+                        sexo
+                    )
+                `)
+                .eq('post_id', postId);
+
+            if (error) throw error;
+            return { data: data.map(item => item.profiles), error: null };
+        } catch (error) {
+            console.error('[postsService] getPostLikes error:', error);
+            return { data: null, error };
+        }
+    },
+
+    // Obtener usuarios que dieron like a un comentario
+    async getCommentLikes(commentId) {
+        try {
+            // Primero obtenemos los IDs de usuario que dieron like
+            const { data: likes, error: likesError } = await supabase
+                .from('comentario_likes')
+                .select('user_id')
+                .eq('comentario_id', commentId);
+
+            if (likesError) throw likesError;
+            if (!likes || likes.length === 0) return { data: [], error: null };
+
+            const userIds = likes.map(l => l.user_id);
+
+            // Luego obtenemos los perfiles para esos IDs
+            const { data: profiles, error: profilesError } = await supabase
+                .from('profiles')
+                .select('id, nombre, foto_url, depto, sexo')
+                .in('id', userIds);
+
+            if (profilesError) throw profilesError;
+
+            return { data: profiles, error: null };
+        } catch (error) {
+            console.error('[postsService] getCommentLikes error:', error);
+            return { data: null, error };
         }
     },
 
@@ -229,7 +295,8 @@ export const postsService = {
                         id,
                         nombre,
                         foto_url,
-                        depto
+                        depto,
+                        raiting_ventas
                     ),
                     comentario_likes (user_id)
                 `)
@@ -266,7 +333,8 @@ export const postsService = {
                         id,
                         nombre,
                         foto_url,
-                        depto
+                        depto,
+                        raiting_ventas
                     )
                 `)
                 .single();
@@ -317,30 +385,50 @@ export const postsService = {
 
     // Suscribirse a cambios globales del Feed
     subscribeToFeedChanges(comunidadId, onPostInsert, onInteractionChange) {
+        console.log(`[postsService] Suscribiendo a cambios para comunidad: ${comunidadId}`);
+
         // Suscripción a nuevos posts
         const postSubscription = supabase
-            .channel(`public:posts:comunidad=${comunidadId}`)
+            .channel(`feed_posts_${comunidadId}`)
             .on(
                 'postgres_changes',
-                { event: 'INSERT', schema: 'public', table: 'posts', filter: `comunidad_id=eq.${comunidadId}` },
-                (payload) => onPostInsert(payload.new)
+                {
+                    event: 'INSERT',
+                    schema: 'public',
+                    table: 'posts',
+                    filter: `comunidad_id=eq.${comunidadId}`
+                },
+                (payload) => {
+                    console.log('[postsService] Nuevo post detectado:', payload.new.id);
+                    onPostInsert(payload.new);
+                }
             )
-            .subscribe();
+            .subscribe((status) => {
+                console.log(`[postsService] Estado suscripción posts: ${status}`);
+            });
 
         // Suscripción a cambios en likes y comentarios (para actualizar contadores)
         const interactionSubscription = supabase
-            .channel('public:interactions')
+            .channel(`feed_interactions_${comunidadId}`)
             .on(
                 'postgres_changes',
                 { event: '*', schema: 'public', table: 'post_likes' },
-                () => onInteractionChange()
+                () => {
+                    console.log('[postsService] Cambio en likes detectado');
+                    onInteractionChange();
+                }
             )
             .on(
                 'postgres_changes',
                 { event: '*', schema: 'public', table: 'comentarios' },
-                () => onInteractionChange()
+                () => {
+                    console.log('[postsService] Cambio en comentarios detectado');
+                    onInteractionChange();
+                }
             )
-            .subscribe();
+            .subscribe((status) => {
+                console.log(`[postsService] Estado suscripción interacciones: ${status}`);
+            });
 
         return { postSubscription, interactionSubscription };
     },

@@ -1,186 +1,122 @@
 import React from 'react';
 import {
-    Modal,
     View,
     Text,
     StyleSheet,
     TouchableOpacity,
-    Platform,
-    SafeAreaView,
 } from 'react-native';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { useTheme } from '../context/ThemeContext';
+import BaseModal from './BaseModal';
 
 const OptionsModal = ({
     visible,
     onClose,
     title = 'Opciones',
-    options = []
+    options = [],
+    children
 }) => {
     const { theme, isDark } = useTheme();
-    return (
-        <Modal
-            visible={visible}
-            transparent
-            animationType="slide"
-            onRequestClose={onClose}
-        >
-            <View style={styles.overlay}>
-                <TouchableOpacity
-                    style={styles.backdrop}
-                    activeOpacity={1}
-                    onPress={onClose}
-                />
-                <View style={[styles.content, { backgroundColor: theme.colors.card }]}>
-                    <View style={[styles.dragPillar, { backgroundColor: theme.colors.border }]} />
-                    <View style={[styles.header, { borderBottomColor: theme.colors.border }]}>
-                        <Text style={[styles.title, { color: theme.colors.text }]}>{title}</Text>
-                        <TouchableOpacity onPress={onClose} style={[styles.closeButton, { backgroundColor: theme.colors.inputBackground }]}>
-                            <MaterialCommunityIcons name="close" size={20} color={theme.colors.textSecondary} />
-                        </TouchableOpacity>
-                    </View>
 
-                    <SafeAreaView style={styles.optionsList}>
-                        {options.map((option, index) => (
-                            <TouchableOpacity
-                                key={index}
-                                style={[
-                                    styles.optionItem,
-                                    { backgroundColor: theme.colors.card },
-                                    index === options.length - 1 && styles.lastOption
-                                ]}
-                                onPress={() => {
-                                    onClose();
-                                    option.onPress();
-                                }}
-                            >
-                                <View style={[
-                                    styles.iconBox,
-                                    { backgroundColor: option.destructive ? (isDark ? 'rgba(239, 68, 68, 0.1)' : '#fef2f2') : theme.colors.inputBackground }
-                                ]}>
-                                    <MaterialCommunityIcons
-                                        name={option.icon}
-                                        size={22}
-                                        color={option.destructive ? '#ef4444' : theme.colors.textSecondary}
-                                    />
-                                </View>
-                                <View style={styles.optionContent}>
-                                    <Text style={[
-                                        styles.optionLabel,
-                                        { color: theme.colors.text },
-                                        option.destructive && styles.destructiveLabel
-                                    ]}>
-                                        {option.label}
-                                    </Text>
-                                    {option.subtitle && (
-                                        <Text style={[styles.optionSubtitle, { color: theme.colors.textSecondary }]}>{option.subtitle}</Text>
-                                    )}
-                                </View>
-                                <MaterialCommunityIcons name="chevron-right" size={20} color={theme.colors.border} />
-                            </TouchableOpacity>
-                        ))}
-                    </SafeAreaView>
+    const backgroundColor = isDark ? '#1e293b' : '#ffffff';
+    const textColor = theme?.colors?.text || (isDark ? '#f8fafc' : '#1e293b');
+    const textColorSecondary = theme?.colors?.textSecondary || (isDark ? '#94a3b8' : '#64748b');
+    const borderColor = isDark ? 'rgba(255, 255, 255, 0.05)' : '#f1f5f9';
+
+    return (
+        <BaseModal visible={visible} onClose={onClose}>
+            <View
+                style={[
+                    styles.modalView,
+                    { backgroundColor: backgroundColor, shadowColor: isDark ? '#000' : '#475569' }
+                ]}
+            >
+                {/* Header */}
+                <View style={styles.header}>
+                    <Text style={[styles.title, { color: textColor }]}>{title}</Text>
+                    <TouchableOpacity onPress={onClose} hitSlop={15} style={styles.closeBtn}>
+                        <MaterialCommunityIcons name="close" size={24} color={textColorSecondary} />
+                    </TouchableOpacity>
                 </View>
+
+                {/* Options List */}
+                <View style={styles.list}>
+                    {options.map((option, index) => (
+                        <TouchableOpacity
+                            key={index}
+                            style={[
+                                styles.item,
+                                { borderBottomColor: borderColor, borderBottomWidth: index === options.length - 1 ? 0 : 1 }
+                            ]}
+                            onPress={() => {
+                                if (option.onPress) {
+                                    option.onPress();
+                                }
+                                onClose();
+                            }}
+                            activeOpacity={0.7}
+                        >
+                            <MaterialCommunityIcons
+                                name={option.icon}
+                                size={24}
+                                color={option.destructive ? '#ef4444' : textColorSecondary}
+                                style={{ marginRight: 15 }}
+                            />
+                            <Text style={[styles.itemText, { color: option.destructive ? '#ef4444' : textColor }]}>
+                                {option.label}
+                            </Text>
+                            <MaterialCommunityIcons name="chevron-right" size={20} color={textColorSecondary} />
+                        </TouchableOpacity>
+                    ))}
+                </View>
+
+                {children}
             </View>
-        </Modal>
+        </BaseModal>
     );
 };
 
 const styles = StyleSheet.create({
-    overlay: {
-        flex: 1,
-        justifyContent: 'flex-end',
-        backgroundColor: 'rgba(15, 23, 42, 0.6)',
-    },
-    backdrop: {
-        ...StyleSheet.absoluteFillObject,
-    },
-    content: {
-        backgroundColor: '#ffffff',
-        borderTopLeftRadius: 32,
-        borderTopRightRadius: 32,
-        paddingBottom: Platform.OS === 'ios' ? 20 : 0,
-        ...Platform.select({
-            web: {
-                boxShadow: '0 -10px 40px rgba(0, 0, 0, 0.15)',
-            },
-            default: {
-                elevation: 20,
-                shadowColor: '#000',
-                shadowOffset: { width: 0, height: -10 },
-                shadowOpacity: 0.1,
-                shadowRadius: 20,
-            }
-        })
-    },
-    dragPillar: {
-        width: 40,
-        height: 5,
-        backgroundColor: '#e2e8f0',
-        borderRadius: 3,
-        alignSelf: 'center',
-        marginTop: 12,
-        marginBottom: 8,
+    modalView: {
+        width: '85%',
+        maxWidth: 340,
+        borderRadius: 24,
+        padding: 24,
+        elevation: 10,
+        shadowOffset: { width: 0, height: 4 },
+        shadowOpacity: 0.25,
+        shadowRadius: 10,
     },
     header: {
+        width: '100%',
         flexDirection: 'row',
-        alignItems: 'center',
         justifyContent: 'space-between',
-        paddingHorizontal: 24,
-        paddingVertical: 16,
+        alignItems: 'center',
+        marginBottom: 20,
+        paddingBottom: 10,
         borderBottomWidth: 1,
-        borderBottomColor: '#f8fafc',
+        borderBottomColor: 'rgba(0,0,0,0.05)'
     },
     title: {
         fontSize: 18,
-        fontWeight: '800',
-        color: '#1e293b',
-        letterSpacing: -0.5,
+        fontWeight: "bold"
     },
-    closeButton: {
-        width: 32,
-        height: 32,
-        borderRadius: 16,
-        backgroundColor: '#f1f5f9',
-        justifyContent: 'center',
-        alignItems: 'center',
+    closeBtn: {
+        padding: 5
     },
-    optionsList: {
-        paddingVertical: 8,
+    list: {
+        width: '100%'
     },
-    optionItem: {
+    item: {
         flexDirection: 'row',
         alignItems: 'center',
-        paddingHorizontal: 24,
-        paddingVertical: 16,
-        backgroundColor: '#fff',
+        paddingVertical: 14,
+        width: '100%'
     },
-    iconBox: {
-        width: 44,
-        height: 44,
-        borderRadius: 12,
-        justifyContent: 'center',
-        alignItems: 'center',
-        marginRight: 16,
-    },
-    optionContent: {
+    itemText: {
         flex: 1,
-    },
-    optionLabel: {
         fontSize: 16,
-        fontWeight: '600',
-        color: '#1e293b',
-    },
-    destructiveLabel: {
-        color: '#ef4444',
-    },
-    optionSubtitle: {
-        fontSize: 13,
-        color: '#94a3b8',
-        marginTop: 2,
-    },
-    lastOption: {
-        marginBottom: 16,
+        fontWeight: '500'
     }
 });
 

@@ -22,6 +22,14 @@
           }
         },
         {
+          "client_id": "326645024756-la1shl9hp8fpkj2ll2t6iee1qan2in29.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.jaran.vecindario.v2",
+            "certificate_hash": "1bfff0ef15d015f2dd7fa59ab8ad22c49f18f1b4"
+          }
+        },
+        {
           "client_id": "326645024756-te4slj6ppdh17dk3coskditcjnr4fp38.apps.googleusercontent.com",
           "client_type": 3
         }

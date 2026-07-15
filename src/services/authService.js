@@ -43,6 +43,9 @@ export const authService = {
                     options: {
                         redirectTo,
                         skipBrowserRedirect: false,
+                        queryParams: {
+                            hl: 'es', // Fuerza el idioma español
+                        }
                     },
                 });
                 if (error) throw error;
@@ -148,6 +151,7 @@ export const authService = {
                         depto: userData.depto,
                         torre: userData.torre,
                         comunidad_id: userData.comunidad_id,
+                        role: 'vecino',
                         verificado: false
                     }
                 ]);
@@ -313,39 +317,68 @@ export const authService = {
         }
     },
 
-    // Subir avatar (tu código original)
+    // Subir avatar (Optimizado para evitar caché y asegurar actualización)
     async uploadAvatar(userId, uri) {
         try {
-            const fileName = `${userId}/avatar.jpg`;
+            let publicUrl = null;
 
-            const base64 = await FileSystem.readAsStringAsync(uri, {
-                encoding: FileSystem.EncodingType.Base64
-            });
-            const arrayBuffer = decode(base64);
+            if (uri) {
+                // Nombre de archivo único para evitar problemas con caché de Storage y CDN
+                const timestamp = Date.now();
+                const fileName = `${userId}/avatar_${timestamp}.jpg`;
 
-            console.log('[authService] Uploading avatar bytes:', { size: arrayBuffer.byteLength, fileName });
-
-            const { data: uploadData, error: uploadError } = await supabase.storage
-                .from('avatars')
-                .upload(fileName, arrayBuffer, {
-                    contentType: 'image/jpeg',
-                    cacheControl: '3600',
-                    upsert: true
+                const base64 = await FileSystem.readAsStringAsync(uri, {
+                    encoding: FileSystem.EncodingType.Base64
                 });
+                const arrayBuffer = decode(base64);
 
-            if (uploadError) throw uploadError;
+                console.log('[authService] Subiendo avatar:', { size: arrayBuffer.byteLength, fileName });
 
-            const { data: { publicUrl } } = supabase.storage
-                .from('avatars')
-                .getPublicUrl(fileName);
+                // 1. Subir a Storage
+                const { data: uploadData, error: uploadError } = await supabase.storage
+                    .from('avatars')
+                    .upload(fileName, arrayBuffer, {
+                        contentType: 'image/jpeg',
+                        cacheControl: '3600',
+                        upsert: true
+                    });
 
-            const urlWithTimestamp = `${publicUrl}?t=${Date.now()}`;
+                if (uploadError) {
+                    console.error('[authService] Error al subir a Storage:', uploadError);
+                    throw uploadError;
+                }
 
-            await this.updateProfile(userId, { foto_url: urlWithTimestamp });
+                // 2. Obtener URL pública (asíncrono no necesario pero usamos desestructuración consistente)
+                const { data: urlData } = supabase.storage
+                    .from('avatars')
+                    .getPublicUrl(fileName);
+                publicUrl = urlData.publicUrl;
 
-            return { data: urlWithTimestamp, error: null };
+                console.log('[authService] URL generada:', publicUrl);
+            } else {
+                console.log('[authService] Eliminando avatar (uri es null)');
+            }
+
+            // 3. Actualizar la tabla de perfiles (Si uri es null, publicUrl será null)
+            const { data: profileUpdated, error: profileError } = await supabase
+                .from('profiles')
+                .update({
+                    foto_url: publicUrl,
+                    updated_at: new Date().toISOString()
+                })
+                .eq('id', userId)
+                .select()
+                .single();
+
+            if (profileError) {
+                console.error('[authService] Error al actualizar perfil en DB:', profileError);
+                throw profileError;
+            }
+
+            console.log('[authService] Perfil actualizado exitosamente en DB');
+            return { data: profileUpdated, error: null };
         } catch (error) {
-            console.error('[authService] uploadAvatar error:', error);
+            console.error('[authService] uploadAvatar catch error:', error);
             return { data: null, error };
         }
     },
@@ -374,7 +407,7 @@ export const authService = {
         try {
             const { data, error } = await supabase
                 .from('profiles')
-                .select('id, nombre, foto_url, depto')
+                .select('id, nombre, foto_url, depto, raiting_ventas')
                 .eq('comunidad_id', comunidadId)
                 .neq('id', currentUserId)
                 .order('nombre', { ascending: true });
@@ -497,6 +530,37 @@ export const authService = {
         } catch (error) {
             console.error('[authService] updateCommunityCode error:', error);
             return { data: null, error };
+        }
+    },
+
+    async updateUserRole(userId, newRole) {
+        try {
+            const { data, error } = await supabase
+                .from('profiles')
+                .update({ role: newRole })
+                .eq('id', userId)
+                .select()
+                .single();
+            if (error) throw error;
+            return { data, error: null };
+        } catch (error) {
+            console.error('[authService] updateUserRole error:', error);
+            return { data: null, error };
+        }
+    },
+
+    async deleteUser(userId) {
+        try {
+            const { error } = await supabase
+                .from('profiles')
+                .delete()
+                .eq('id', userId);
+
+            if (error) throw error;
+            return { error: null };
+        } catch (error) {
+            console.error('[authService] deleteUser error:', error);
+            return { error };
         }
     }
 };

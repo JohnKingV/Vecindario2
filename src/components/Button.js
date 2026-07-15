@@ -1,7 +1,8 @@
 import React from 'react';
-import { TouchableOpacity, Text, StyleSheet, ActivityIndicator, View, Animated, Platform } from 'react-native';
+import { TouchableOpacity, Text, StyleSheet, View, Animated, Platform } from 'react-native';
 
 import { useTheme } from '../context/ThemeContext';
+import { LoadingDots } from './LoadingDots';
 
 const Button = ({
     children,
@@ -10,6 +11,7 @@ const Button = ({
     variant = 'primary',
     fullWidth = false,
     style,
+    contentStyle,
     disabled = false,
     loading = false,
     icon,
@@ -17,6 +19,7 @@ const Button = ({
 }) => {
     const { theme, isDark } = useTheme();
     const [scale] = React.useState(new Animated.Value(1));
+    const [isHovered, setIsHovered] = React.useState(false);
 
     const handlePressIn = () => {
         Animated.spring(scale, {
@@ -39,15 +42,34 @@ const Button = ({
     const getVariantStyle = () => {
         switch (variant) {
             case 'secondary':
-                return [styles.secondary, { backgroundColor: isDark ? 'rgba(37, 99, 235, 0.15)' : '#eff6ff' }];
+                return [
+                    styles.secondary,
+                    { backgroundColor: theme.colors.primary + '20' },
+                    Platform.OS === 'web' && isHovered && { backgroundColor: theme.colors.primary + '30' }
+                ];
             case 'outline':
-                return [styles.outline, { borderColor: theme.colors.border }];
+                return [
+                    styles.outline,
+                    { borderColor: theme.colors.border },
+                    Platform.OS === 'web' && isHovered && { borderColor: theme.colors.primary, backgroundColor: isDark ? 'rgba(37, 99, 235, 0.05)' : 'rgba(37, 99, 235, 0.02)' }
+                ];
             case 'danger':
-                return [styles.danger, { backgroundColor: isDark ? 'rgba(225, 29, 72, 0.15)' : '#fff1f2' }];
+                return [
+                    styles.danger,
+                    { backgroundColor: '#dc2626' },
+                    Platform.OS === 'web' && isHovered && { backgroundColor: '#b91c1c' }
+                ];
             case 'ghost':
-                return styles.ghost;
+                return [
+                    styles.ghost,
+                    Platform.OS === 'web' && isHovered && { backgroundColor: isDark ? 'rgba(255, 255, 255, 0.05)' : 'rgba(0,0,0,0.02)' }
+                ];
             default:
-                return [styles.primary, { backgroundColor: theme.colors.primary }];
+                return [
+                    styles.primary,
+                    { backgroundColor: theme.colors.primary },
+                    Platform.OS === 'web' && isHovered && { backgroundColor: theme.colors.primary + 'ee', transform: [{ translateY: -1 }] }
+                ];
         }
     };
 
@@ -58,7 +80,7 @@ const Button = ({
             case 'outline':
                 return [styles.outlineText, { color: theme.colors.textSecondary }];
             case 'danger':
-                return [styles.dangerText, { color: isDark ? '#fb7185' : '#e11d48' }];
+                return [styles.dangerText, { color: '#ffffff' }];
             case 'ghost':
                 return [styles.ghostText, { color: theme.colors.textSecondary }];
             default:
@@ -69,27 +91,34 @@ const Button = ({
     const content = children || title;
 
     return (
-        <Animated.View style={[{ transform: [{ scale }], width: fullWidth ? '100%' : 'auto' }, style]}>
+        <Animated.View style={[{ transform: [{ scale: scale }], width: fullWidth ? '100%' : 'auto' }, style]}>
             <TouchableOpacity
                 onPress={onPress}
                 onPressIn={handlePressIn}
                 onPressOut={handlePressOut}
                 activeOpacity={1}
                 disabled={disabled || loading}
-                style={[
+                style={StyleSheet.flatten([
                     styles.button,
                     getVariantStyle(),
                     fullWidth && styles.fullWidth,
                     disabled && styles.disabled,
-                ]}
+                    contentStyle,
+                ])}
+                {...Platform.select({
+                    web: {
+                        onMouseEnter: () => setIsHovered(true),
+                        onMouseLeave: () => setIsHovered(false),
+                    }
+                })}
                 {...props}
             >
                 {loading ? (
-                    <ActivityIndicator color={variant === 'primary' ? '#fff' : (isDark ? '#60a5fa' : '#2563eb')} />
+                    <LoadingDots size={8} color={variant === 'primary' ? '#fff' : (isDark ? '#60a5fa' : '#2563eb')} />
                 ) : (
                     <View style={styles.contentContainer}>
-                        {icon && <View style={styles.iconContainer}>{icon}</View>}
-                        <Text style={[styles.text, getTextStyle(), props.textStyle]}>
+                        {icon ? <View style={styles.iconContainer}>{icon}</View> : null}
+                        <Text style={StyleSheet.flatten([styles.text, getTextStyle(), props.textStyle])}>
                             {content}
                         </Text>
                     </View>
@@ -152,10 +181,22 @@ const styles = StyleSheet.create({
         color: '#475569',
     },
     danger: {
-        backgroundColor: '#fff1f2',
+        backgroundColor: '#ef4444',
+        ...Platform.select({
+            web: {
+                boxShadow: '0px 8px 16px rgba(239, 68, 68, 0.3)',
+            },
+            default: {
+                shadowColor: '#ef4444',
+                shadowOffset: { width: 0, height: 8 },
+                shadowOpacity: 0.3,
+                shadowRadius: 16,
+                elevation: 8,
+            }
+        })
     },
     dangerText: {
-        color: '#e11d48',
+        color: '#ffffff',
     },
     ghost: {
         backgroundColor: 'transparent',

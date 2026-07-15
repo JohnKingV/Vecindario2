@@ -1,6 +1,5 @@
 import React from 'react';
 import {
-    Modal as RNModal,
     View,
     Text,
     StyleSheet,
@@ -10,65 +9,77 @@ import {
     KeyboardAvoidingView,
     Platform,
 } from 'react-native';
-
+import { Portal } from 'react-native-paper';
 import { useTheme } from '../context/ThemeContext';
+
+const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = Dimensions.get('window');
 
 const Modal = ({ isOpen, onClose, title, children, scrollable = true }) => {
     const { theme, isDark } = useTheme();
+
+    if (!isOpen) return null;
+
     return (
-        <RNModal
-            visible={isOpen}
-            transparent
-            animationType="slide"
-            onRequestClose={onClose}
-        >
-            <View style={styles.overlay}>
+        <Portal>
+            <View style={styles.portalContainer}>
+                {/* Backdrop */}
                 <TouchableOpacity
                     style={styles.backdrop}
                     activeOpacity={1}
                     onPress={onClose}
                 />
-                <View style={[styles.content, { backgroundColor: theme.colors.card }]}>
-                    <View style={[styles.dragPillar, { backgroundColor: theme.colors.border }]} />
-                    <View style={[styles.header, { borderBottomColor: theme.colors.border }]}>
-                        <Text style={[styles.title, { color: theme.colors.text }]}>{title}</Text>
-                        <TouchableOpacity onPress={onClose} style={[styles.closeButton, { backgroundColor: theme.colors.inputBackground }]}>
-                            <Text style={[styles.closeIcon, { color: theme.colors.textSecondary }]}>✕</Text>
-                        </TouchableOpacity>
-                    </View>
 
-                    <KeyboardAvoidingView
-                        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
-                        style={{ flexShrink: 1 }}
-                    >
-                        {scrollable ? (
-                            <ScrollView
-                                showsVerticalScrollIndicator={false}
-                                bounces={false}
-                                contentContainerStyle={styles.scrollBody}
-                            >
-                                {children}
-                            </ScrollView>
-                        ) : (
-                            <View style={styles.body}>
-                                {children}
-                            </View>
-                        )}
-                    </KeyboardAvoidingView>
+                {/* Content Wrapper */}
+                <View style={styles.contentWrapper}>
+                    <View style={[styles.content, { backgroundColor: isDark ? '#111827' : '#ffffff' }]}>
+                        <View style={[styles.dragPillar, { backgroundColor: theme.colors.border }]} />
+                        <View style={[styles.header, { borderBottomColor: theme.colors.border }]}>
+                            <Text style={[styles.title, { color: theme.colors.text }]}>{title}</Text>
+                            <TouchableOpacity onPress={onClose} style={[styles.closeButton, { backgroundColor: theme.colors.inputBackground }]}>
+                                <Text style={[styles.closeIcon, { color: theme.colors.textSecondary }]}>✕</Text>
+                            </TouchableOpacity>
+                        </View>
+
+                        <KeyboardAvoidingView
+                            behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+                            style={{ flexShrink: 1 }}
+                        >
+                            {scrollable ? (
+                                <ScrollView
+                                    showsVerticalScrollIndicator={false}
+                                    bounces={false}
+                                    contentContainerStyle={styles.scrollBody}
+                                >
+                                    {children}
+                                </ScrollView>
+                            ) : (
+                                <View style={styles.body}>
+                                    {children}
+                                </View>
+                            )}
+                        </KeyboardAvoidingView>
+                    </View>
                 </View>
             </View>
-        </RNModal>
+        </Portal>
     );
 };
 
 const styles = StyleSheet.create({
-    overlay: {
-        flex: 1,
+    portalContainer: {
+        ...StyleSheet.absoluteFillObject,
+        width: SCREEN_WIDTH,
+        height: SCREEN_HEIGHT,
+        zIndex: 9999,
         justifyContent: 'flex-end',
-        backgroundColor: 'rgba(15, 23, 42, 0.6)',
     },
     backdrop: {
         ...StyleSheet.absoluteFillObject,
+        backgroundColor: 'rgba(15, 23, 42, 0.65)',
+    },
+    contentWrapper: {
+        width: '100%',
+        justifyContent: 'flex-end',
     },
     content: {
         backgroundColor: '#ffffff',
@@ -109,25 +120,22 @@ const styles = StyleSheet.create({
     title: {
         fontSize: 22,
         fontWeight: '900',
-        color: '#0f172a',
         letterSpacing: -0.5,
         flex: 1,
     },
     closeButton: {
         padding: 8,
-        backgroundColor: '#f1f5f9',
         borderRadius: 20,
     },
     closeIcon: {
         fontSize: 16,
-        color: '#94a3b8',
         fontWeight: 'bold',
     },
     body: {
-        padding: 0, // Let the children handle padding to avoid double padding
+        padding: 0,
     },
     scrollBody: {
-        paddingBottom: 40, // Extra space at bottom for accessibility
+        paddingBottom: 40,
     }
 });
 

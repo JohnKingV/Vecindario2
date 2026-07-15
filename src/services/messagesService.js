@@ -1,11 +1,14 @@
 import { supabase } from '../config/supabase';
+import { Platform } from 'react-native';
+import * as FileSystem from 'expo-file-system';
+import { decode } from 'base64-arraybuffer';
 
 export const messagesService = {
     /**
      * Obtiene la lista de conversaciones del usuario actual.
      * Incluye el último mensaje y los datos del perfil del destinatario.
      */
-    async getConversations(userId) {
+    async getConversations(userId, showArchived = false) {
         try {
             // Esta consulta asume una vista o una relación que une conversaciones con perfiles
             // Para simplicidad inicial, buscaremos mensajes agrupados por conversación
@@ -15,12 +18,14 @@ export const messagesService = {
                     id,
                     last_message,
                     updated_at,
-                    members:conversation_members!inner(user_id),
+                    members:conversation_members!inner(user_id, is_archived, is_deleted),
                     participants:conversation_members(
-                        profile:profiles(id, nombre, foto_url, status, sexo)
+                        profile:profiles(id, nombre, foto_url, status, sexo, raiting_ventas)
                     )
                 `)
                 .eq('conversation_members.user_id', userId)
+                .eq('conversation_members.is_deleted', false)
+                .eq('conversation_members.is_archived', !!showArchived)
                 .order('updated_at', { ascending: false });
 
             if (error) throw error;
@@ -37,18 +42,47 @@ export const messagesService = {
                     .neq('sender_id', userId)
                     .eq('is_read', false);
 
+                // Obtener el ULTIMO mensaje real para tener la hora exacta y el contenido más reciente
+                const { data: lastMsg } = await supabase
+                    .from('messages')
+                    .select('content, created_at, image_url')
+                    .eq('conversation_id', conv.id)
+                    .order('created_at', { ascending: false })
+                    .limit(1)
+                    .maybeSingle();
+
+                let lastText = lastMsg?.content || conv.last_message || 'Inicia una conversación';
+                // Si el mensaje es una imagen y no tiene texto, mostramos el aviso de cámara
+                if (!lastMsg?.content && lastMsg?.image_url) {
+                    lastText = '📷 Imagen';
+                }
+
                 return {
                     id: conv.id,
                     name: otherMember?.nombre || 'Vecino',
                     avatar: otherMember?.foto_url,
                     status: otherMember?.status,
-                    lastMessage: conv.last_message,
-                    time: conv.updated_at,
+                    lastMessage: lastText,
+                    time: lastMsg?.created_at || conv.updated_at,
                     otherId: otherMember?.id,
                     sexo: otherMember?.sexo,
+                    raiting_ventas: otherMember?.raiting_ventas,
                     unreadCount: count || 0
                 };
             }));
+
+            // Ordenar por tiempo (el más reciente primero) de forma robusta
+            formatted.sort((a, b) => {
+                const getTime = (val) => {
+                    if (!val) return 0;
+                    // Normalizar para asegurar que el motor JS lo trate como UTC si no tiene zona
+                    let s = typeof val === 'string' ? val : val.toString();
+                    if (!s.includes('T') && s.includes(' ')) s = s.replace(' ', 'T');
+                    if (!s.includes('Z') && !s.includes('+')) s += 'Z';
+                    return new Date(s).getTime();
+                };
+                return getTime(b.time) - getTime(a.time);
+            });
 
             return { data: formatted, error: null };
         } catch (error) {
@@ -78,7 +112,7 @@ export const messagesService = {
     /**
      * Envía un mensaje.
      */
-    async sendMessage(conversationId, senderId, text, itemId = null) {
+    async sendMessage(conversationId, senderId, text, itemId = null, imageUrl = null) {
         try {
             const messageData = {
                 conversation_id: conversationId,
@@ -90,6 +124,10 @@ export const messagesService = {
                 messageData.item_id = itemId;
             }
 
+            if (imageUrl) {
+                messageData.image_url = imageUrl;
+            }
+
             const { data, error } = await supabase
                 .from('messages')
                 .insert([messageData])
@@ -99,13 +137,77 @@ export const messagesService = {
             if (error) throw error;
 
             // Actualizar la fecha de la conversación para que suba al inicio de la lista
+            // Si hay imagen y no hay texto, poner "📷 Imagen" como last_message
+            const lastMessageText = text || '📷 Imagen';
+
             await supabase
                 .from('conversations')
-                .update({ updated_at: new Date().toISOString(), last_message: text })
+                .update({ updated_at: new Date().toISOString(), last_message: lastMessageText })
                 .eq('id', conversationId);
 
             return { data, error: null };
         } catch (error) {
+            return { data: null, error };
+        }
+    },
+
+    /**
+     * Sube una imagen para un mensaje.
+     */
+    async uploadMessageImage(userId, uri) {
+        try {
+            const fileName = `${userId}/${Date.now()}.jpg`;
+            let fileData;
+
+            if (Platform.OS === 'web') {
+                const response = await fetch(uri);
+                fileData = await response.blob();
+            } else {
+                const base64 = await FileSystem.readAsStringAsync(uri, {
+                    encoding: FileSystem.EncodingType.Base64
+                });
+                fileData = decode(base64);
+            }
+
+            // Usamos un bucket llamado 'chat' (asegúrate de que exista)
+            const { data: uploadData, error: uploadError } = await supabase.storage
+                .from('chat')
+                .upload(fileName, fileData, {
+                    contentType: 'image/jpeg',
+                    cacheControl: '3600',
+                    upsert: true
+                });
+
+            if (uploadError) {
+                // Si el bucket 'chat' no existe, intentamos usar 'posts' temporalmente o informamos
+                if (uploadError.message === 'Bucket not found') {
+                    // Re-intentar con bucket 'posts' que sabemos que existe
+                    const { data: retryData, error: retryError } = await supabase.storage
+                        .from('posts')
+                        .upload(fileName, fileData, {
+                            contentType: 'image/jpeg',
+                            cacheControl: '3600',
+                            upsert: true
+                        });
+
+                    if (retryError) throw retryError;
+
+                    const { data: { publicUrl } } = supabase.storage
+                        .from('posts')
+                        .getPublicUrl(fileName);
+
+                    return { data: publicUrl, error: null };
+                }
+                throw uploadError;
+            }
+
+            const { data: { publicUrl } } = supabase.storage
+                .from('chat')
+                .getPublicUrl(fileName);
+
+            return { data: publicUrl, error: null };
+        } catch (error) {
+            console.error('[messagesService] uploadMessageImage error:', error);
             return { data: null, error };
         }
     },
@@ -170,11 +272,9 @@ export const messagesService = {
 
             if (error) throw error;
 
-            // "Tocar" la conversación para disparar la actualización en tiempo real en la lista de chats
-            await supabase
-                .from('conversations')
-                .update({ updated_at: new Date().toISOString() })
-                .eq('id', conversationId);
+            // Al marcar como leído, NO actualizamos updated_at de la conversación principal
+            // para no afectar la hora del último mensaje enviado que se muestra en la lista.
+            // La suscripción en tiempo real se puede manejar escuchando la tabla de mensajes o miembros.
 
             return { error: null };
         } catch (error) {
@@ -200,6 +300,44 @@ export const messagesService = {
                 (payload) => onMessage(payload.new)
             )
             .subscribe();
+    },
+
+    /**
+     * Archiva o desarchiva una conversación para el usuario actual.
+     */
+    async archiveConversation(conversationId, userId, status = true) {
+        try {
+            const { error } = await supabase
+                .from('conversation_members')
+                .update({ is_archived: status })
+                .eq('conversation_id', conversationId)
+                .eq('user_id', userId);
+
+            if (error) throw error;
+            return { error: null };
+        } catch (error) {
+            console.error('[messagesService] archiveConversation error:', error);
+            return { error };
+        }
+    },
+
+    /**
+     * Elimina lógicamente una conversación para el usuario actual.
+     */
+    async deleteConversation(conversationId, userId) {
+        try {
+            const { error } = await supabase
+                .from('conversation_members')
+                .update({ is_deleted: true })
+                .eq('conversation_id', conversationId)
+                .eq('user_id', userId);
+
+            if (error) throw error;
+            return { error: null };
+        } catch (error) {
+            console.error('[messagesService] deleteConversation error:', error);
+            return { error };
+        }
     },
 
     /**
@@ -245,17 +383,25 @@ export const messagesService = {
      * Suscripción en tiempo real a nuevas conversaciones o actualizaciones de la lista.
      */
     subscribeToConversations(userId, onUpdate) {
-        return supabase
-            .channel(`conversations:${userId}`)
+        // Suscribirse a cambios en conversaciones (para archivado/eliminación/actualización de metadata)
+        const conversationsChannel = supabase.channel(`conversations-meta:${userId}`)
             .on(
                 'postgres_changes',
-                {
-                    event: '*',
-                    schema: 'public',
-                    table: 'conversations'
-                },
+                { event: '*', schema: 'public', table: 'conversations' },
                 () => onUpdate()
             )
             .subscribe();
+
+        // Suscribirse a nuevos mensajes para que la lista se actualice en tiempo real 
+        // cuando llegue uno nuevo, incluso si no estamos en el chat.
+        const messagesChannel = supabase.channel(`conversations-live:${userId}`)
+            .on(
+                'postgres_changes',
+                { event: 'INSERT', schema: 'public', table: 'messages' },
+                () => onUpdate()
+            )
+            .subscribe();
+
+        return [conversationsChannel, messagesChannel];
     }
 };

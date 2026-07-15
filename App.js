@@ -1,6 +1,8 @@
+import 'react-native-gesture-handler';
 import { StatusBar } from 'expo-status-bar';
 import React, { useEffect } from 'react';
 import { LogBox } from 'react-native';
+import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { PaperProvider } from 'react-native-paper';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { AuthProvider } from './src/hooks/useAuth';
@@ -14,6 +16,7 @@ LogBox.ignoreLogs([
     'Setting a timer',
     'AsyncStorage has been extracted',
     'props.pointerEvents is deprecated',
+    'Invalid Refresh Token',
 ]);
 
 const AppContent = () => {
@@ -37,14 +40,16 @@ export default function App() {
     }, []);
 
     return (
-        <SafeAreaProvider>
-            <PaperProvider>
+        <GestureHandlerRootView style={{ flex: 1 }}>
+            <SafeAreaProvider>
                 <ThemeProvider>
-                    <AuthProvider>
-                        <AppContent />
-                    </AuthProvider>
+                    <PaperProvider>
+                        <AuthProvider>
+                            <AppContent />
+                        </AuthProvider>
+                    </PaperProvider>
                 </ThemeProvider>
-            </PaperProvider>
-        </SafeAreaProvider>
+            </SafeAreaProvider>
+        </GestureHandlerRootView>
     );
 }

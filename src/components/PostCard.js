@@ -1,8 +1,19 @@
 import React from 'react';
-import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, Platform } from 'react-native';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import Avatar from './Avatar';
 import ResilientImage from './ResilientImage';
+import Reanimated, {
+    useSharedValue,
+    useAnimatedStyle,
+    withRepeat,
+    withTiming,
+    withSequence,
+    withDelay,
+    Easing,
+    interpolate
+} from 'react-native-reanimated';
+import { LinearGradient } from 'expo-linear-gradient';
 
 const PostCard = React.memo(({
     item,
@@ -13,22 +24,82 @@ const PostCard = React.memo(({
     typeConfig,
     onPress,
     onLike,
+    onLongPressLike,
+    onCommentLike,
+    onCommentLongPressLike,
     onMoreOptions,
     onUserProfilePress,
     formatDate
 }) => {
+    const { width } = React.useMemo(() => ({ width: Platform.OS === 'web' ? window.innerWidth : 0 }), []);
+    const [isHovered, setIsHovered] = React.useState(false);
     const config = typeConfig[item.tipo?.toLowerCase()] || typeConfig.evento;
     const isOwner = item.user_id === user?.id;
     const isAdmin = userProfile?.role === 'admin';
     const authorProfile = isOwner ? userProfile : item.profiles;
 
+    // Glimmer Animation Logic
+    const shimmerX = useSharedValue(-100);
+    const pulseValue = useSharedValue(0.9);
+
+    React.useEffect(() => {
+        shimmerX.value = withRepeat(
+            withSequence(
+                withTiming(100, { duration: 1500, easing: Easing.linear }),
+                withDelay(2500, withTiming(-100, { duration: 0 }))
+            ),
+            -1,
+            false
+        );
+
+        pulseValue.value = withRepeat(
+            withSequence(
+                withTiming(1, { duration: 1000 }),
+                withTiming(0.8, { duration: 1000 })
+            ),
+            -1,
+            true
+        );
+    }, []);
+
+    const shimmerStyle = useAnimatedStyle(() => ({
+        transform: [{ translateX: interpolate(shimmerX.value, [-100, 100], [-150, 450]) }],
+    }));
+
+    const pulseStyle = useAnimatedStyle(() => ({
+        opacity: pulseValue.value,
+    }));
+
     return (
         <TouchableOpacity
             activeOpacity={0.9}
             onPress={onPress}
-            style={[styles.postCard, { backgroundColor: theme.colors.card, borderColor: theme.colors.border }]}
+            style={[
+                styles.postCard,
+                { backgroundColor: theme.colors.card, borderColor: theme.colors.border },
+                Platform.OS === 'web' && isHovered && {
+                    borderColor: theme.colors.primary,
+                    transform: [{ translateY: -4 }],
+                    boxShadow: isDark ? '0px 20px 40px rgba(0,0,0,0.4)' : '0px 20px 40px rgba(0,0,0,0.08)'
+                }
+            ]}
+            {...Platform.select({
+                web: {
+                    onMouseEnter: () => setIsHovered(true),
+                    onMouseLeave: () => setIsHovered(false),
+                }
+            })}
         >
-            <View style={[styles.cardTypeStrip, { backgroundColor: config.color }]} />
+            <Reanimated.View style={[styles.cardTypeStrip, { backgroundColor: config.color }, pulseStyle]}>
+                <Reanimated.View style={[StyleSheet.absoluteFill, shimmerStyle]}>
+                    <LinearGradient
+                        colors={['transparent', 'rgba(255,255,255,0.0)', 'rgba(255,255,255,0.4)', 'rgba(255,255,255,0.0)', 'transparent']}
+                        start={{ x: 0, y: 0 }}
+                        end={{ x: 1, y: 0 }}
+                        style={StyleSheet.absoluteFill}
+                    />
+                </Reanimated.View>
+            </Reanimated.View>
             <View style={[styles.postCardHeader, { borderBottomColor: theme.colors.border }]}>
                 <TouchableOpacity
                     style={styles.authorRow}
@@ -39,6 +110,7 @@ const PostCard = React.memo(({
                         name={authorProfile?.nombre}
                         size="md"
                         status={authorProfile?.status}
+                        featured={authorProfile?.is_featured || authorProfile?.raiting_ventas >= 4.0}
                     />
                     <View>
                         <Text style={[styles.authorName, { color: theme.colors.text }]}>
@@ -85,14 +157,16 @@ const PostCard = React.memo(({
                     <TouchableOpacity
                         style={styles.actionBtn}
                         onPress={onLike}
+                        onLongPress={onLongPressLike}
+                        delayLongPress={300}
                         activeOpacity={0.7}
                     >
                         <MaterialCommunityIcons
                             name={item.has_liked ? "heart" : "heart-outline"}
                             size={22}
-                            color={item.has_liked ? "#ef4444" : theme.colors.textSecondary}
+                            color={item.has_liked ? "#FFA500" : theme.colors.textSecondary}
                         />
-                        <Text style={[styles.actionText, { color: theme.colors.textSecondary }, item.has_liked && { color: '#ef4444' }]}>
+                        <Text style={[styles.actionText, { color: theme.colors.textSecondary }, item.has_liked && { color: '#FFA500' }]}>
                             {item.likes_count || 0}
                         </Text>
                     </TouchableOpacity>
@@ -124,15 +198,38 @@ const PostCard = React.memo(({
                                     uri={commentProfile?.foto_url}
                                     name={commentProfile?.nombre}
                                     size="sm"
+                                    featured={commentProfile?.is_featured || commentProfile?.raiting_ventas >= 4.0}
+                                    key={`comment-avatar-${comment.id}`}
                                 />
-                                <View style={[styles.miniCommentBubble, { backgroundColor: theme.colors.inputBackground }]}>
-                                    <View style={styles.miniCommentHeader}>
-                                        <Text style={[styles.miniCommentAuthor, { color: theme.colors.text }]}>{commentProfile?.nombre}</Text>
-                                        <Text style={[styles.miniCommentTime, { color: theme.colors.textSecondary }]}>{formatDate(comment.created_at)}</Text>
+                                <View style={styles.miniCommentFullContent}>
+                                    <View style={[styles.miniCommentBubble, { backgroundColor: theme.colors.inputBackground }]}>
+                                        <View style={styles.miniCommentHeader}>
+                                            <Text style={[styles.miniCommentAuthor, { color: theme.colors.text }]}>{commentProfile?.nombre}</Text>
+                                            <Text style={[styles.miniCommentTime, { color: theme.colors.textSecondary }]}>{formatDate(comment.created_at)}</Text>
+                                        </View>
+                                        <Text style={[styles.miniCommentBody, { color: theme.colors.textSecondary }]} numberOfLines={2}>
+                                            {comment.contenido}
+                                        </Text>
                                     </View>
-                                    <Text style={[styles.miniCommentBody, { color: theme.colors.textSecondary }]} numberOfLines={2}>
-                                        {comment.contenido}
-                                    </Text>
+                                    <View style={styles.miniCommentActions}>
+                                        <TouchableOpacity
+                                            style={styles.miniLikeBtn}
+                                            onPress={() => onCommentLike?.(comment.id)}
+                                            onLongPress={() => onCommentLongPressLike?.(comment.id)}
+                                            delayLongPress={300}
+                                        >
+                                            <MaterialCommunityIcons
+                                                name={comment.has_liked ? "heart" : "heart-outline"}
+                                                size={14}
+                                                color={comment.has_liked ? "#FFA500" : theme.colors.textSecondary}
+                                            />
+                                            {comment.likes_count > 0 && (
+                                                <Text style={[styles.miniLikeCount, { color: comment.has_liked ? "#FFA500" : theme.colors.textSecondary }]}>
+                                                    {comment.likes_count}
+                                                </Text>
+                                            )}
+                                        </TouchableOpacity>
+                                    </View>
                                 </View>
                             </View>
                         );
@@ -291,6 +388,23 @@ const styles = StyleSheet.create({
     },
     miniCommentBody: {
         fontSize: 13,
+    },
+    miniCommentFullContent: {
+        flex: 1,
+    },
+    miniCommentActions: {
+        flexDirection: 'row',
+        paddingHorizontal: 12,
+        marginTop: 2,
+    },
+    miniLikeBtn: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: 4,
+    },
+    miniLikeCount: {
+        fontSize: 11,
+        fontWeight: 'bold',
     },
     viewMoreBtn: {
         flexDirection: 'row',

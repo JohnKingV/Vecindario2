@@ -15,7 +15,8 @@ export const marketplaceService = {
                     foto_url,
                     depto,
                     telefono,
-                    sexo
+                    sexo,
+                    raiting_ventas
                 ),
                 item_likes (user_id),
                 item_comentarios (id)
@@ -76,7 +77,8 @@ export const marketplaceService = {
                             nombre,
                             foto_url,
                             depto,
-                            telefono
+                            telefono,
+                            raiting_ventas
                         ),
                         item_likes (user_id)
                     )
@@ -245,7 +247,7 @@ export const marketplaceService = {
         try {
             const { data, error } = await supabase
                 .from('profiles')
-                .select('id, nombre, foto_url, depto, torre')
+                .select('id, nombre, foto_url, depto, torre, raiting_ventas')
                 .eq('comunidad_id', comunidadId)
                 .order('nombre', { ascending: true });
 
@@ -320,7 +322,7 @@ export const marketplaceService = {
                 .from('item_comentarios')
                 .select(`
                     *,
-                    profiles:user_id (id, nombre, foto_url, depto)
+                    profiles:user_id (id, nombre, foto_url, depto, raiting_ventas)
                 `)
                 .eq('item_id', itemId)
                 .order('created_at', { ascending: true });
@@ -340,7 +342,7 @@ export const marketplaceService = {
                 .insert([{ item_id: itemId, user_id: userId, contenido }])
                 .select(`
                     *,
-                    profiles:user_id (id, nombre, foto_url, depto)
+                    profiles:user_id (id, nombre, foto_url, depto, raiting_ventas)
                 `)
                 .single();
 

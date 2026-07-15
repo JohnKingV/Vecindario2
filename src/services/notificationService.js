@@ -110,6 +110,25 @@ export const notificationService = {
             .subscribe();
     },
 
+    // Enviar notificación local
+    sendLocalNotification: async (title, body, data = {}) => {
+        if (Platform.OS === 'web') return;
+
+        try {
+            await Notifications.scheduleNotificationAsync({
+                content: {
+                    title,
+                    body,
+                    data,
+                    sound: true,
+                },
+                trigger: null, // Envío inmediato
+            });
+        } catch (error) {
+            console.error('[notificationService] error sending local notification:', error);
+        }
+    },
+
     // Eliminar suscripción
     unsubscribe: (subscription) => {
         if (subscription) {

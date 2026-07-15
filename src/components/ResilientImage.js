@@ -1,10 +1,25 @@
 import React, { useState } from 'react';
-import { View, Image, ActivityIndicator, StyleSheet } from 'react-native';
+import { View, Image, StyleSheet, Platform } from 'react-native';
 import { useTheme } from '../context/ThemeContext';
+import { LoadingDots } from './LoadingDots';
 
-const ResilientImage = ({ source, style, resizeMode = 'cover', ...props }) => {
-    const [loading, setLoading] = useState(true);
+const ResilientImage = React.memo(({ source, style, resizeMode = 'cover', ...props }) => {
+    const [loading, setLoading] = useState(false);
+    const [showLoader, setShowLoader] = useState(false);
     const { theme } = useTheme();
+
+    const imageUri = typeof source === 'object' ? source?.uri : source;
+
+    React.useEffect(() => {
+        let timer;
+        if (loading) {
+            // Only show loader if image takes more than 150ms to load (caching/fast connection)
+            timer = setTimeout(() => setShowLoader(true), 150);
+        } else {
+            setShowLoader(false);
+        }
+        return () => clearTimeout(timer);
+    }, [loading]);
 
     return (
         <View style={[styles.container, style, { backgroundColor: theme.colors.inputBackground }]}>
@@ -12,18 +27,26 @@ const ResilientImage = ({ source, style, resizeMode = 'cover', ...props }) => {
                 source={source}
                 style={[StyleSheet.absoluteFill, style]}
                 resizeMode={resizeMode}
-                onLoadStart={() => setLoading(true)}
+                fadeDuration={Platform.OS === 'web' ? 0 : 300}
+                onLoadStart={() => {
+                    if (typeof imageUri === 'string' && imageUri.startsWith('http')) {
+                        setLoading(true);
+                    }
+                }}
                 onLoadEnd={() => setLoading(false)}
+                onError={() => setLoading(false)}
                 {...props}
             />
-            {loading && (
-                <View style={[StyleSheet.absoluteFill, styles.loader]}>
-                    <ActivityIndicator size="small" color={theme.colors.primary} />
+            {showLoader && (
+                <View style={[StyleSheet.absoluteFill, styles.loader, { backgroundColor: theme.colors.inputBackground }]}>
+                    <LoadingDots size={8} color={theme.colors.primary} />
                 </View>
             )}
         </View>
     );
-};
+});
+
+ResilientImage.displayName = 'ResilientImage';
 
 const styles = StyleSheet.create({
     container: {

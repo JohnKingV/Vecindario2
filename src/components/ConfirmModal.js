@@ -1,18 +1,15 @@
 import React from 'react';
 import {
-    Modal,
     View,
     Text,
     StyleSheet,
     TouchableOpacity,
-    Dimensions,
     Platform,
 } from 'react-native';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import Button from './Button';
 import { useTheme } from '../context/ThemeContext';
-
-const { width } = Dimensions.get('window');
+import BaseModal from './BaseModal';
 
 const ConfirmModal = ({
     visible,
@@ -22,9 +19,15 @@ const ConfirmModal = ({
     message,
     confirmText = 'Confirmar',
     cancelText = 'Cancelar',
-    type = 'danger' // 'danger', 'warning', 'info'
+    type = 'danger', // 'danger', 'warning', 'info'
+    showCancel = true
 }) => {
     const { theme, isDark } = useTheme();
+
+    const textColor = theme?.colors?.text || (isDark ? '#f8fafc' : '#1e293b');
+    const textColorSecondary = theme?.colors?.textSecondary || (isDark ? '#94a3b8' : '#64748b');
+    const inputBg = theme?.colors?.inputBackground || (isDark ? '#334155' : '#f1f5f9');
+
     const getIcon = () => {
         switch (type) {
             case 'danger': return 'alert-circle-outline';
@@ -44,76 +47,51 @@ const ConfirmModal = ({
     };
 
     return (
-        <Modal
-            visible={visible}
-            transparent
-            animationType="fade"
-            onRequestClose={onClose}
-        >
-            <View style={styles.overlay}>
-                <TouchableOpacity
-                    style={styles.backdrop}
-                    activeOpacity={1}
-                    onPress={onClose}
-                />
-                <View style={[styles.modalContainer, { backgroundColor: theme.colors.card }]}>
-                    <View style={[styles.iconContainer, { backgroundColor: getIconColor() + '15' }]}>
-                        <MaterialCommunityIcons name={getIcon()} size={32} color={getIconColor()} />
-                    </View>
+        <BaseModal visible={visible} onClose={onClose}>
+            <View style={[styles.modalContainer, { backgroundColor: isDark ? '#111827' : '#ffffff' }]}>
+                <View style={[styles.iconContainer, { backgroundColor: getIconColor() + '15' }]}>
+                    <MaterialCommunityIcons name={getIcon()} size={32} color={getIconColor()} />
+                </View>
 
-                    <Text style={[styles.title, { color: theme.colors.text }]}>{title}</Text>
-                    <Text style={[styles.message, { color: theme.colors.textSecondary }]}>{message}</Text>
+                <Text style={[styles.title, { color: textColor }]}>{title}</Text>
+                <Text style={[styles.message, { color: textColorSecondary }]}>{message}</Text>
 
-                    <View style={styles.footer}>
-                        <TouchableOpacity style={[styles.cancelBtn, { backgroundColor: theme.colors.inputBackground }]} onPress={onClose}>
-                            <Text style={[styles.cancelBtnText, { color: theme.colors.textSecondary }]}>{cancelText}</Text>
-                        </TouchableOpacity>
-
-                        <Button
-                            onPress={onConfirm}
-                            variant={type === 'danger' ? 'danger' : 'primary'}
-                            style={styles.confirmBtn}
-                            textStyle={styles.confirmBtnText}
+                <View style={styles.footer}>
+                    {showCancel && (
+                        <TouchableOpacity
+                            style={[styles.cancelBtn, { backgroundColor: inputBg }]}
+                            onPress={onClose}
                         >
-                            {confirmText}
-                        </Button>
-                    </View>
+                            <Text style={[styles.cancelBtnText, { color: textColorSecondary }]}>{cancelText}</Text>
+                        </TouchableOpacity>
+                    )}
+
+                    <Button
+                        onPress={onConfirm}
+                        variant={type === 'danger' ? 'danger' : 'primary'}
+                        style={styles.confirmBtn}
+                        textStyle={[styles.confirmBtnText, { color: '#ffffff' }]}
+                    >
+                        {confirmText}
+                    </Button>
                 </View>
             </View>
-        </Modal>
+        </BaseModal>
     );
 };
 
 const styles = StyleSheet.create({
-    overlay: {
-        flex: 1,
-        backgroundColor: 'rgba(15, 23, 42, 0.7)',
-        justifyContent: 'center',
-        alignItems: 'center',
-        padding: 20,
-    },
-    backdrop: {
-        ...StyleSheet.absoluteFillObject,
-    },
     modalContainer: {
-        width: Platform.OS === 'web' ? 400 : '100%',
+        width: Platform.OS === 'web' ? 400 : '90%',
         maxWidth: 500,
-        backgroundColor: '#fff',
         borderRadius: 24,
         padding: 24,
         alignItems: 'center',
-        ...Platform.select({
-            web: {
-                boxShadow: '0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04)',
-            },
-            default: {
-                elevation: 10,
-                shadowColor: '#000',
-                shadowOffset: { width: 0, height: 10 },
-                shadowOpacity: 0.1,
-                shadowRadius: 10,
-            }
-        })
+        elevation: 10,
+        shadowColor: '#000',
+        shadowOffset: { width: 0, height: 10 },
+        shadowOpacity: 0.1,
+        shadowRadius: 10,
     },
     iconContainer: {
         width: 64,
@@ -126,13 +104,11 @@ const styles = StyleSheet.create({
     title: {
         fontSize: 20,
         fontWeight: '800',
-        color: '#1e293b',
         textAlign: 'center',
         marginBottom: 8,
     },
     message: {
         fontSize: 15,
-        color: '#64748b',
         textAlign: 'center',
         lineHeight: 22,
         marginBottom: 24,
@@ -148,7 +124,6 @@ const styles = StyleSheet.create({
         justifyContent: 'center',
         alignItems: 'center',
         borderRadius: 14,
-        backgroundColor: '#f1f5f9',
     },
     confirmBtn: {
         flex: 1,
@@ -158,7 +133,6 @@ const styles = StyleSheet.create({
     cancelBtnText: {
         fontSize: 15,
         fontWeight: '600',
-        color: '#64748b',
     },
     confirmBtnText: {
         fontSize: 15,

@@ -8,7 +8,7 @@
     "scheme": "vecindarioapp",
     "userInterfaceStyle": "automatic",
     "jsEngine": "hermes",
-    "newArchEnabled": true,
+    "newArchEnabled": false,
     "ios": {
       "supportsTablet": true,
       "bundleIdentifier": "com.jaran.vecindarioapp",
@@ -22,24 +22,33 @@
       "package": "com.jaran.vecindario.v2",
       "googleServicesFile": "./google-services.json",
       "adaptiveIcon": {
-        "backgroundColor": "#E6F4FE",
+        "backgroundColor": "#0C1014",
         "foregroundImage": "./assets/images/adaptive-icon.png"
       }
     },
     "splash": {
       "image": "./assets/images/splash.png",
       "resizeMode": "contain",
-      "backgroundColor": "#ffffff"
+      "backgroundColor": "#0C1014"
     },
     "web": {
       "bundler": "metro",
-      "favicon": "./assets/images/favicon.png"
+      "favicon": "./assets/images/favicon.png",
+      "name": "Vecindario",
+      "shortName": "Vecindario",
+      "description": "Tu comunidad en tus manos. Gestión de condominios y marketplace vecinal.",
+      "display": "standalone",
+      "backgroundColor": "#ffffff",
+      "themeColor": "#2196F3",
+      "lang": "es",
+      "orientation": "portrait"
     },
     "plugins": [
       "expo-splash-screen",
       "expo-font",
       "expo-notifications",
-      "@react-native-google-signin/google-signin"
+      "@react-native-google-signin/google-signin",
+      "@react-native-community/datetimepicker"
     ],
     "experiments": {
       "typedRoutes": true

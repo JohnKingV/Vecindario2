@@ -1,9 +1,20 @@
 import React from 'react';
-import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, Platform } from 'react-native';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import Avatar from './Avatar';
 import ResilientImage from './ResilientImage';
 import Button from './Button';
+import Reanimated, {
+    useSharedValue,
+    useAnimatedStyle,
+    withRepeat,
+    withTiming,
+    withSequence,
+    withDelay,
+    Easing,
+    interpolate
+} from 'react-native-reanimated';
+import { LinearGradient } from 'expo-linear-gradient';
 
 const ItemCard = React.memo(({
     item,
@@ -15,13 +26,71 @@ const ItemCard = React.memo(({
     activeCategory,
     formatPrice
 }) => {
+    const [isHovered, setIsHovered] = React.useState(false);
+
+    // Glimmer Animation Logic
+    const shimmerX = useSharedValue(-100);
+    const pulseValue = useSharedValue(0.9);
+
+    React.useEffect(() => {
+        shimmerX.value = withRepeat(
+            withSequence(
+                withTiming(100, { duration: 1500, easing: Easing.linear }),
+                withDelay(3000, withTiming(-100, { duration: 0 }))
+            ),
+            -1,
+            false
+        );
+
+        pulseValue.value = withRepeat(
+            withSequence(
+                withTiming(1, { duration: 1200 }),
+                withTiming(0.7, { duration: 1200 })
+            ),
+            -1,
+            true
+        );
+    }, []);
+
+    const shimmerStyle = useAnimatedStyle(() => ({
+        transform: [{ translateX: interpolate(shimmerX.value, [-100, 100], [-100, 300]) }],
+    }));
+
+    const pulseStyle = useAnimatedStyle(() => ({
+        opacity: pulseValue.value,
+    }));
+
     if (activeCategory === 'Servicios') {
         return (
             <TouchableOpacity
                 activeOpacity={0.9}
                 onPress={onPress}
-                style={[styles.serviceCard, { backgroundColor: theme.colors.card, borderColor: theme.colors.border }]}
+                style={[
+                    styles.serviceCard,
+                    { backgroundColor: theme.colors.card, borderColor: theme.colors.border },
+                    Platform.OS === 'web' && isHovered && {
+                        borderColor: theme.colors.primary,
+                        transform: [{ translateY: -4 }],
+                        boxShadow: '0px 10px 20px rgba(0, 0, 0, 0.08)'
+                    }
+                ]}
+                {...Platform.select({
+                    web: {
+                        onMouseEnter: () => setIsHovered(true),
+                        onMouseLeave: () => setIsHovered(false),
+                    }
+                })}
             >
+                <Reanimated.View style={[styles.cardTypeStrip, { backgroundColor: theme.colors.primary }, pulseStyle]}>
+                    <Reanimated.View style={[StyleSheet.absoluteFill, shimmerStyle]}>
+                        <LinearGradient
+                            colors={['transparent', 'rgba(255,255,255,0.0)', 'rgba(255,255,255,0.4)', 'rgba(255,255,255,0.0)', 'transparent']}
+                            start={{ x: 0, y: 0 }}
+                            end={{ x: 1, y: 0 }}
+                            style={StyleSheet.absoluteFill}
+                        />
+                    </Reanimated.View>
+                </Reanimated.View>
                 <View style={styles.serviceHeader}>
                     <View style={styles.authorRow}>
                         <Avatar
@@ -29,6 +98,7 @@ const ItemCard = React.memo(({
                             name={item.user_id === userProfile?.id ? userProfile?.nombre : item.profiles?.nombre}
                             size="md"
                             status={item.user_id === userProfile?.id ? userProfile?.status : item.profiles?.status}
+                            featured={(item.user_id === userProfile?.id ? userProfile?.raiting_ventas : item.profiles?.raiting_ventas) >= 4.0}
                         />
                         <View style={{ flex: 1 }}>
                             <View style={styles.authorRowSpaceBetween}>
@@ -60,9 +130,9 @@ const ItemCard = React.memo(({
                             <MaterialCommunityIcons
                                 name={item.has_liked ? "heart" : "heart-outline"}
                                 size={20}
-                                color={item.has_liked ? theme.colors.error : theme.colors.textSecondary}
+                                color={item.has_liked ? "#FFA500" : theme.colors.textSecondary}
                             />
-                            <Text style={[styles.statText, { color: item.has_liked ? theme.colors.error : theme.colors.textSecondary }]}>
+                            <Text style={[styles.statText, { color: item.has_liked ? "#FFA500" : theme.colors.textSecondary }]}>
                                 {item.likes_count || 0}
                             </Text>
                         </View>
@@ -91,7 +161,18 @@ const ItemCard = React.memo(({
         <TouchableOpacity
             activeOpacity={0.9}
             onPress={onPress}
-            style={styles.productCard}
+            style={[
+                styles.productCard,
+                Platform.OS === 'web' && isHovered && {
+                    transform: [{ scale: 1.02 }],
+                }
+            ]}
+            {...Platform.select({
+                web: {
+                    onMouseEnter: () => setIsHovered(true),
+                    onMouseLeave: () => setIsHovered(false),
+                }
+            })}
         >
             <View style={styles.imageContainer}>
                 <ResilientImage
@@ -105,13 +186,13 @@ const ItemCard = React.memo(({
                     <MaterialCommunityIcons
                         name={item.has_liked ? "heart" : "heart-outline"}
                         size={16}
-                        color={item.has_liked ? "#ef4444" : "#111418"}
+                        color={item.has_liked ? "#FFA500" : "#111418"}
                     />
                 </TouchableOpacity>
                 {isService && (
-                    <View style={[styles.serviceTag, { backgroundColor: theme.colors.primary }]}>
+                    <Reanimated.View style={[styles.serviceTag, { backgroundColor: theme.colors.primary }, pulseStyle]}>
                         <Text style={styles.serviceTagText}>SERVICIO</Text>
-                    </View>
+                    </Reanimated.View>
                 )}
             </View>
 
@@ -129,6 +210,7 @@ const ItemCard = React.memo(({
                             name={item.profiles.nombre}
                             size="xs"
                             status={item.profiles.status}
+                            featured={item.profiles.raiting_ventas >= 4.0}
                             style={styles.sellerAvatar}
                         />
                     ) : (
@@ -291,6 +373,11 @@ const styles = StyleSheet.create({
         color: '#fff',
         fontSize: 10,
         fontWeight: '900',
+    },
+    cardTypeStrip: {
+        height: 4,
+        width: '100%',
+        overflow: 'hidden',
     },
 });
 

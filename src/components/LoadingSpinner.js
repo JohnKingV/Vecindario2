@@ -1,12 +1,12 @@
-import React from 'react';
-import { View, ActivityIndicator, Text, StyleSheet } from 'react-native';
+import { View, Text, StyleSheet } from 'react-native';
 import { useTheme } from '../context/ThemeContext';
+import { LoadingDots } from './LoadingDots';
 
 const LoadingSpinner = ({ message = 'Cargando...' }) => {
     const { theme } = useTheme();
     return (
         <View style={[styles.container, { backgroundColor: theme.colors.background }]}>
-            <ActivityIndicator size="large" color={theme.colors.primary} />
+            <LoadingDots size={12} color={theme.colors.primary} />
             {message && <Text style={[styles.message, { color: theme.colors.textSecondary }]}>{message}</Text>}
         </View>
     );

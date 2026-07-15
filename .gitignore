@@ -45,3 +45,8 @@ app-example
 # generated native folders
 /ios
 /android
+
+# AI and separate projects
+.agents/
+.agent/
+my-video/

@@ -1,5 +1,14 @@
 import React from 'react';
 import { Image, View, Text, StyleSheet, Platform, ActivityIndicator } from 'react-native';
+import Animated, {
+    useSharedValue,
+    useAnimatedStyle,
+    withRepeat,
+    withTiming,
+    Easing,
+    interpolate
+} from 'react-native-reanimated';
+import { LinearGradient } from 'expo-linear-gradient';
 
 const SIZES = {
     xs: 20,
@@ -36,13 +45,69 @@ const getInitials = (name) => {
     if (parts.length >= 2) {
         return (parts[0][0] + parts[1][0]).toUpperCase();
     }
-    return parts[0][0].toUpperCase();
 };
 
-const Avatar = ({ src, uri, name, size = 'md', status, style, border = false }) => {
+const FeaturedRing = ({ size }) => {
+    const rotation = useSharedValue(0);
+    const pulse = useSharedValue(1);
+
+    React.useEffect(() => {
+        rotation.value = withRepeat(
+            withTiming(1, {
+                duration: 4000,
+                easing: Easing.bezier(0.4, 0, 0.2, 1),
+            }),
+            -1,
+            false
+        );
+
+        pulse.value = withRepeat(
+            withTiming(1.08, {
+                duration: 2000,
+                easing: Easing.inOut(Easing.ease),
+            }),
+            -1,
+            true
+        );
+    }, []);
+
+    const animatedStyle = useAnimatedStyle(() => ({
+        transform: [
+            { rotate: `${rotation.value * 360}deg` },
+            { scale: pulse.value }
+        ],
+        opacity: interpolate(pulse.value, [1, 1.08], [0.8, 1]),
+    }));
+
+    return (
+        <View style={[styles.ringContainer, { width: size + 6, height: size + 6 }]}>
+            <Animated.View style={[styles.ringInner, animatedStyle]}>
+                <LinearGradient
+                    colors={['#FFD700', '#FFA500', '#FFEA00', '#FF8C00', '#FFD700']}
+                    start={{ x: 0, y: 0 }}
+                    end={{ x: 1, y: 1 }}
+                    style={StyleSheet.absoluteFill}
+                />
+            </Animated.View>
+        </View>
+    );
+};
+
+const Avatar = React.memo(({ src, uri, name, size = 'md', status, showStatus = true, style, border = false, featured = false }) => {
     const containerSize = typeof size === 'number' ? size : (SIZES[size] || SIZES.md);
     const imageSource = src || uri;
-    const [loading, setLoading] = React.useState(true);
+    const [loading, setLoading] = React.useState(false);
+    const [showLoader, setShowLoader] = React.useState(false);
+
+    React.useEffect(() => {
+        let timer;
+        if (loading) {
+            timer = setTimeout(() => setShowLoader(true), 150);
+        } else {
+            setShowLoader(false);
+        }
+        return () => clearTimeout(timer);
+    }, [loading]);
 
     const getStatusColor = (s) => {
         switch (s?.toLowerCase()) {
@@ -61,6 +126,7 @@ const Avatar = ({ src, uri, name, size = 'md', status, style, border = false }) 
 
     return (
         <View style={[styles.outerContainer, style]}>
+            {featured && <FeaturedRing size={containerSize} />}
             <View style={[
                 styles.container,
                 {
@@ -76,10 +142,16 @@ const Avatar = ({ src, uri, name, size = 'md', status, style, border = false }) 
                         <Image
                             source={{ uri: imageSource }}
                             style={styles.image}
-                            onLoadStart={() => setLoading(true)}
+                            fadeDuration={Platform.OS === 'web' ? 0 : 300}
+                            onLoadStart={() => {
+                                if (typeof imageSource === 'string' && imageSource.startsWith('http')) {
+                                    setLoading(true);
+                                }
+                            }}
                             onLoadEnd={() => setLoading(false)}
+                            onError={() => setLoading(false)}
                         />
-                        {loading && (
+                        {showLoader && (
                             <View style={[StyleSheet.absoluteFill, styles.loaderContainer]}>
                                 <ActivityIndicator size="small" color="#94a3b8" />
                             </View>
@@ -96,7 +168,7 @@ const Avatar = ({ src, uri, name, size = 'md', status, style, border = false }) 
                     </View>
                 )}
             </View>
-            {statusColor && (
+            {statusColor && showStatus && (
                 <View style={[
                     styles.statusIndicator,
                     {
@@ -113,7 +185,9 @@ const Avatar = ({ src, uri, name, size = 'md', status, style, border = false }) 
             )}
         </View>
     );
-};
+});
+
+Avatar.displayName = 'Avatar';
 
 const styles = StyleSheet.create({
     outerContainer: {
@@ -148,7 +222,28 @@ const styles = StyleSheet.create({
     border: {
         borderWidth: 2,
         borderColor: '#ffffff',
-    }
+    },
+    ringContainer: {
+        position: 'absolute',
+        top: -3,
+        left: -3,
+        justifyContent: 'center',
+        alignItems: 'center',
+        zIndex: -1,
+        // Brillo exterior intenso (Futuristic Glow)
+        shadowColor: '#FFA500',
+        shadowOffset: { width: 0, height: 0 },
+        shadowOpacity: 1,
+        shadowRadius: 10,
+        elevation: 12,
+    },
+    ringInner: {
+        width: '100%',
+        height: '100%',
+        borderRadius: 999,
+        overflow: 'hidden',
+        padding: 2,
+    },
 });
 
 export default Avatar;

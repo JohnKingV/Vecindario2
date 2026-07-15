@@ -13,34 +13,72 @@ const Input = ({
     autoCapitalize,
     containerStyle,
     inputStyle,
+    flat = false,
+    noMargin = false,
     ...props
 }) => {
-    const { theme } = useTheme();
+    const { theme, isDark } = useTheme();
+    const inputRef = React.useRef(null);
+
+    const handlePress = () => {
+        if (inputRef.current) {
+            inputRef.current.focus();
+        }
+    };
 
     return (
-        <View style={[{ marginBottom: 16 }, containerStyle]}>
-            <TextInput
-                value={value}
-                onChangeText={onChangeText}
-                placeholder={placeholder}
-                secureTextEntry={secureTextEntry}
-                keyboardType={keyboardType}
-                autoCapitalize={autoCapitalize}
-                placeholderTextColor="#94a3b8"
+        <View style={[styles.container, noMargin && { marginBottom: 0 }, containerStyle]}>
+            {props.label && <Text style={[styles.label, { color: theme.colors.textSecondary }]}>{props.label}</Text>}
+            <TouchableOpacity
+                activeOpacity={1}
+                onPress={handlePress}
                 style={[
+                    styles.inputWrapper,
                     {
-                        backgroundColor: '#f8fafc',
-                        borderWidth: 2,
-                        borderColor: '#e2e8f0',
-                        borderRadius: 12,
-                        padding: 15,
-                        fontSize: 16,
-                        color: '#0f172a',
+                        backgroundColor: theme.colors.inputBackground,
+                        borderColor: theme.colors.border
                     },
-                    inputStyle
+                    flat && {
+                        backgroundColor: 'transparent',
+                        borderWidth: 0,
+                        minHeight: 'auto',
+                        paddingHorizontal: 0
+                    },
+                    props.error && styles.error
                 ]}
-                {...props}
-            />
+            >
+                {props.leftIcon && (
+                    <View style={[styles.iconContainer, flat && { left: 0 }]}>
+                        {props.leftIcon}
+                    </View>
+                )}
+                <TextInput
+                    ref={inputRef}
+                    value={value}
+                    onChangeText={onChangeText}
+                    placeholder={placeholder}
+                    secureTextEntry={secureTextEntry}
+                    keyboardType={keyboardType}
+                    autoCapitalize={autoCapitalize}
+                    placeholderTextColor={theme.colors.placeholder}
+                    style={[
+                        styles.input,
+                        { color: theme.colors.text },
+                        props.leftIcon && styles.inputWithIcon,
+                        flat && props.leftIcon && { paddingLeft: 32 },
+                        props.multiline && styles.multilineInput,
+                        inputStyle
+                    ]}
+                    underlineColorAndroid="transparent"
+                    {...props}
+                />
+                {props.rightIcon && (
+                    <View style={[styles.rightAction, flat && { paddingHorizontal: 0 }]}>
+                        {props.rightIcon}
+                    </View>
+                )}
+            </TouchableOpacity>
+            {props.error && <Text style={styles.errorText}>{props.error}</Text>}
         </View>
     );
 };
@@ -60,25 +98,11 @@ const styles = StyleSheet.create({
         letterSpacing: 1.5,
     },
     inputWrapper: {
-        backgroundColor: '#ffffff',
         borderWidth: 2,
-        borderColor: '#f1f5f9',
         borderRadius: 16,
         flexDirection: 'row',
         alignItems: 'center',
-        minHeight: 56,
-    },
-    focused: {
-        ...Platform.select({
-            web: { boxShadow: '0px 0px 8px rgba(37, 99, 235, 0.1)' },
-            default: {
-                shadowColor: '#2563eb',
-                shadowOffset: { width: 0, height: 0 },
-                shadowOpacity: 0.1,
-                shadowRadius: 8,
-                elevation: 2,
-            }
-        })
+        height: 56, // Fixed height matching MessagesScreen
     },
     error: {
         borderColor: '#ef4444',
@@ -90,45 +114,33 @@ const styles = StyleSheet.create({
     },
     input: {
         flex: 1,
+        height: '100%', // Match MessagesScreen searchInput
         paddingHorizontal: 16,
         fontSize: 16,
-        color: '#0f172a',
         fontWeight: '500',
-        borderWidth: 0,
-        backgroundColor: 'transparent',
         ...Platform.select({
             web: {
                 outlineStyle: 'none',
-                outlineWidth: 0,
-                outlineColor: 'transparent',
-                boxShadow: 'none',
             },
             default: {
                 paddingVertical: 0,
-                elevation: 0,
-                shadowOpacity: 0,
             }
         })
     },
     inputWithIcon: {
         paddingLeft: 48,
     },
-    multilineContainer: {
-        alignItems: 'flex-start',
-        minHeight: 120,
-        paddingVertical: 12,
-    },
     multilineInput: {
         textAlignVertical: 'top',
+        height: 'auto',
+        minHeight: 100,
+        paddingVertical: 12,
     },
     rightAction: {
-        paddingHorizontal: 16,
+        paddingRight: 13,
+        paddingLeft: 95,
         justifyContent: 'center',
         alignItems: 'center',
-    },
-    eyeIcon: {
-        fontSize: 18,
-        color: '#94a3b8',
     },
     errorText: {
         color: '#ef4444',
